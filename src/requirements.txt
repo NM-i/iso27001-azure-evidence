@@ -1,0 +1,5 @@
+azure-functions>=1.21
+azure-identity>=1.17
+azure-mgmt-resourcegraph>=8.0.0
+azure-storage-blob>=12.20
+azure-monitor-ingestion>=1.0.4

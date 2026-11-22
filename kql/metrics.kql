@@ -1,0 +1,53 @@
+// Queries for the test results (tables 2.15–2.17). Run in the prototype Log Analytics workspace
+// (portal: Logs) or with: az monitor log-analytics query -w <workspaceCustomerId> --analytics-query "<query>" -o json
+// Replace the datetime values with your own UTC times before running.
+
+// ===== R4 / TF-03: cycles and interval between starts in the first hour =====
+let t = datetime(2026-12-01T10:00:00Z);
+EvidenceCycle_CL
+| where StartTime >= t and StartTime < t + 1h
+| order by StartTime asc
+| extend IntervalSec = datetime_diff('second', StartTime, prev(StartTime))
+| summarize Cycles = count(), MinIntervalSec = min(IntervalSec), MaxIntervalSec = max(IntervalSec),
+            OutOfTolerance = countif(isnotnull(IntervalSec) and abs(IntervalSec - 300) > 30)
+
+// ===== R8 / TF-06: cycles with missing fields =====
+EvidenceCycle_CL
+| where TimeGenerated > ago(48h)
+| summarize Cycles = count(),
+            MissingFields = countif(isnull(StartTime) or isnull(EndTime) or isnull(RecordCount) or isempty(CycleId))
+
+// ===== R12 / TF-08: median duration of 12 consecutive cycles and HTTP 429 =====
+let t = datetime(2026-12-01T12:00:00Z);
+EvidenceCycle_CL
+| where StartTime >= t
+| top 12 by StartTime asc
+| summarize Cycles = count(), MedianDurationSec = percentile(DurationSec, 50),
+            MaxDurationSec = max(DurationSec), Throttled429 = sum(Throttled)
+
+// ===== R13 / TF-09: successful cycles in 24 h (planned 288) =====
+let t = datetime(2026-12-01T12:00:00Z);
+EvidenceCycle_CL
+| where StartTime >= t and StartTime < t + 24h
+| summarize Planned = 288, Logged = count(), Succeeded = countif(Status == 'Succeeded'),
+            Partial = countif(Status == 'Partial'), Failed = countif(Status == 'Failed')
+| extend SuccessPct = round(100.0 * Succeeded / Planned, 1)
+
+// ===== K3_EXPORT / TF-05: results during the drift experiment (input for tools/compute_k3.py) =====
+let t_start = datetime(2026-12-02T08:00:00Z);
+let t_end   = datetime(2026-12-02T23:00:00Z);
+EvidenceResult_CL
+| where CollectedAt between (t_start .. t_end)
+| project CycleId, ControlId, ResourceId, Result, CollectedAt
+| order by CollectedAt asc
+
+// ===== R10_LA_HASHES / TF-07: hashes kept in the log for one control and day =====
+EvidenceResult_CL
+| where ControlId == 'A.8.24' and CollectedAt between (datetime(2026-12-02) .. 1d)
+| project BlobPath, Sha256
+
+// ===== K1: controls with at least one automatic record in the last 24 h =====
+EvidenceResult_CL
+| where TimeGenerated > ago(24h)
+| summarize Records = count() by ControlId
+| summarize ControlsWithEvidence = count(), K1_pct = round(100.0 * count() / 11, 1)

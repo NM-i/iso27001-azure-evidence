@@ -1,0 +1,106 @@
+{
+  "catalogVersion": "1.0",
+  "standard": "ISO/IEC 27001:2022 Annex A",
+  "notes": "Placeholders {subscription} and {target_rg} are replaced at runtime. Every query must return the columns resourceId (string), compliant (bool) and observed (dynamic). Azure Policy names are given only where a built-in definition with the same meaning is expected; verify them in the portal before citing.",
+  "controls": [
+    {
+      "controlId": "A.8.2",
+      "name": "Privileged access rights",
+      "nameLt": "Privilegijuotos prieigos teisės",
+      "table": "authorizationresources",
+      "criterion": "No direct Owner role assignments at the scope of the monitored resource group",
+      "azurePolicyEquivalent": null,
+      "query": "authorizationresources | where type =~ 'microsoft.authorization/roleassignments' | extend scope = tolower(tostring(properties.scope)), roleDef = tolower(tostring(properties.roleDefinitionId)) | where scope == tolower('/subscriptions/{subscription}/resourceGroups/{target_rg}') | summarize owners = countif(roleDef endswith '8e3af657-a8ff-443c-a75c-2fe8c4bcb635') | project resourceId = '/subscriptions/{subscription}/resourceGroups/{target_rg}', compliant = (owners == 0), observed = pack('directOwnerAssignments', owners)"
+    },
+    {
+      "controlId": "A.8.3",
+      "name": "Information access restriction",
+      "nameLt": "Prieigos prie informacijos ribojimas",
+      "table": "resources",
+      "criterion": "Storage account allowBlobPublicAccess = false",
+      "azurePolicyEquivalent": "Storage account public access should be disallowed",
+      "query": "resources | where type =~ 'microsoft.storage/storageaccounts' and resourceGroup =~ '{target_rg}' | extend p = tobool(properties.allowBlobPublicAccess) | project resourceId = id, compliant = (isnotnull(p) and p == false), observed = pack('allowBlobPublicAccess', p)"
+    },
+    {
+      "controlId": "A.8.5",
+      "name": "Secure authentication",
+      "nameLt": "Saugus autentifikavimas",
+      "table": "resources",
+      "criterion": "Storage account allowSharedKeyAccess = false",
+      "azurePolicyEquivalent": "Storage accounts should prevent shared key access",
+      "query": "resources | where type =~ 'microsoft.storage/storageaccounts' and resourceGroup =~ '{target_rg}' | extend p = tobool(properties.allowSharedKeyAccess) | project resourceId = id, compliant = (isnotnull(p) and p == false), observed = pack('allowSharedKeyAccess', p)"
+    },
+    {
+      "controlId": "A.8.9",
+      "name": "Configuration management",
+      "nameLt": "Konfigūracijos valdymas",
+      "table": "resources",
+      "criterion": "Every resource in the monitored resource group has the tags owner and environment",
+      "azurePolicyEquivalent": "Require a tag on resources",
+      "query": "resources | where resourceGroup =~ '{target_rg}' | extend o = tostring(tags['owner']), e = tostring(tags['environment']) | project resourceId = id, compliant = (isnotempty(o) and isnotempty(e)), observed = pack('owner', o, 'environment', e)"
+    },
+    {
+      "controlId": "A.8.13",
+      "name": "Information backup",
+      "nameLt": "Atsarginės informacijos kopijos",
+      "table": "resources",
+      "criterion": "Key Vault enablePurgeProtection = true",
+      "azurePolicyEquivalent": "Key vaults should have deletion protection enabled",
+      "query": "resources | where type =~ 'microsoft.keyvault/vaults' and resourceGroup =~ '{target_rg}' | extend p = tobool(properties.enablePurgeProtection) | project resourceId = id, compliant = (p == true), observed = pack('enablePurgeProtection', p)"
+    },
+    {
+      "controlId": "A.8.15",
+      "name": "Logging",
+      "nameLt": "Registravimas",
+      "table": "resources",
+      "criterion": "Log Analytics workspace retentionInDays >= 90",
+      "azurePolicyEquivalent": null,
+      "query": "resources | where type =~ 'microsoft.operationalinsights/workspaces' and resourceGroup =~ '{target_rg}' | extend r = toint(properties.retentionInDays) | project resourceId = id, compliant = (r >= 90), observed = pack('retentionInDays', r)"
+    },
+    {
+      "controlId": "A.8.16",
+      "name": "Monitoring activities",
+      "nameLt": "Stebėsenos veikla",
+      "table": "resources",
+      "criterion": "At least one enabled activity log alert for Microsoft.Network/networkSecurityGroups/write exists",
+      "azurePolicyEquivalent": "An activity log alert should exist for specific Administrative operations",
+      "query": "resources | where type =~ 'microsoft.insights/activitylogalerts' and resourceGroup =~ '{target_rg}' | extend en = tobool(properties.enabled) | mv-expand c = properties.condition.allOf | where tostring(c.field) =~ 'operationName' and tostring(c.equals) =~ 'Microsoft.Network/networkSecurityGroups/write' | summarize enabledAlerts = countif(en == true) | project resourceId = '/subscriptions/{subscription}/resourceGroups/{target_rg}', compliant = (enabledAlerts > 0), observed = pack('enabledNsgWriteAlerts', enabledAlerts)"
+    },
+    {
+      "controlId": "A.8.20",
+      "name": "Networks security",
+      "nameLt": "Tinklų saugumas",
+      "table": "resources",
+      "criterion": "No inbound Allow rule from Internet/any to port 22 or 3389",
+      "azurePolicyEquivalent": null,
+      "query": "resources | where type =~ 'microsoft.network/networksecuritygroups' and resourceGroup =~ '{target_rg}' | extend rules = iff(array_length(properties.securityRules) > 0, properties.securityRules, dynamic([{}])) | mv-expand r = rules | extend acc = tostring(r.properties.access), dir = tostring(r.properties.direction), src = tostring(r.properties.sourceAddressPrefix), port = tostring(r.properties.destinationPortRange), ports = tostring(r.properties.destinationPortRanges) | extend bad = (acc =~ 'Allow' and dir =~ 'Inbound' and src in~ ('*', 'Internet', '0.0.0.0/0', 'Any') and (port in ('22', '3389', '*') or ports has '\"22\"' or ports has '\"3389\"')) | summarize openRules = countif(bad) by resourceId = id | project resourceId, compliant = (openRules == 0), observed = pack('openManagementRules', openRules)"
+    },
+    {
+      "controlId": "A.8.21",
+      "name": "Security of network services",
+      "nameLt": "Tinklo paslaugų saugumas",
+      "table": "resources",
+      "criterion": "Key Vault publicNetworkAccess = Disabled or networkAcls.defaultAction = Deny",
+      "azurePolicyEquivalent": "Azure Key Vault should disable public network access",
+      "query": "resources | where type =~ 'microsoft.keyvault/vaults' and resourceGroup =~ '{target_rg}' | extend pna = tostring(properties.publicNetworkAccess), da = tostring(properties.networkAcls.defaultAction) | project resourceId = id, compliant = (pna =~ 'Disabled' or da =~ 'Deny'), observed = pack('publicNetworkAccess', pna, 'defaultAction', da)"
+    },
+    {
+      "controlId": "A.8.22",
+      "name": "Segregation of networks",
+      "nameLt": "Tinklų atskyrimas",
+      "table": "resources",
+      "criterion": "Every subnet is associated with a network security group",
+      "azurePolicyEquivalent": "Subnets should be associated with a Network Security Group",
+      "query": "resources | where type =~ 'microsoft.network/virtualnetworks' and resourceGroup =~ '{target_rg}' | mv-expand s = properties.subnets | extend nsg = tostring(s.properties.networkSecurityGroup.id) | project resourceId = tostring(s.id), compliant = isnotempty(nsg), observed = pack('networkSecurityGroup', nsg)"
+    },
+    {
+      "controlId": "A.8.24",
+      "name": "Use of cryptography",
+      "nameLt": "Kriptografijos naudojimas",
+      "table": "resources",
+      "criterion": "Storage account minimumTlsVersion = TLS1_2 and supportsHttpsTrafficOnly = true",
+      "azurePolicyEquivalent": "Secure transfer to storage accounts should be enabled",
+      "query": "resources | where type =~ 'microsoft.storage/storageaccounts' and resourceGroup =~ '{target_rg}' | extend tls = tostring(properties.minimumTlsVersion), https = tobool(properties.supportsHttpsTrafficOnly) | project resourceId = id, compliant = (tls == 'TLS1_2' and https == true), observed = pack('minimumTlsVersion', tls, 'supportsHttpsTrafficOnly', https)"
+    }
+  ]
+}

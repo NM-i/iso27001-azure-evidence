@@ -1,0 +1,42 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": { "json": "## ISO/IEC 27001:2022 A priedo kontrolių būklė\nPaskutinio sėkmingo rinkimo ciklo rezultatai. Duomenys: EvidenceResult_CL, EvidenceCycle_CL." },
+      "name": "title"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let last = toscalar(EvidenceCycle_CL | where Status in ('Succeeded', 'Partial') | top 1 by StartTime desc | project CycleId);\nEvidenceResult_CL\n| where CycleId == last\n| summarize Neatitinka = countif(Result == 'neatitinka'), Istekliu = count(), PaskutinisIrodymas = max(CollectedAt) by Kontrole = ControlId, Pavadinimas = ControlName\n| extend Bukle = iff(Neatitinka > 0, 'neatitinka', 'atitinka')\n| project Kontrole, Pavadinimas, Bukle, Neatitinka, Istekliu, PaskutinisIrodymas\n| order by Kontrole asc",
+        "size": 0,
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [ "__WORKSPACE_ID__" ],
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            { "columnMatch": "Bukle", "formatter": 18, "formatOptions": { "thresholdsOptions": "icons", "thresholdsGrid": [ { "operator": "==", "thresholdValue": "atitinka", "representation": "success", "text": "atitinka" }, { "operator": "Default", "representation": "4", "text": "neatitinka" } ] } }
+          ]
+        }
+      },
+      "name": "controls"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "EvidenceCycle_CL\n| where TimeGenerated > ago(24h)\n| project StartTime, Status, DurationSec, RecordCount, Throttled, Error\n| order by StartTime desc",
+        "size": 1,
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [ "__WORKSPACE_ID__" ],
+        "visualization": "table"
+      },
+      "name": "cycles"
+    }
+  ],
+  "fallbackResourceIds": [ "__WORKSPACE_ID__" ]
+}
