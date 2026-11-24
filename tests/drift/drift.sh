@@ -6,14 +6,14 @@
 set -euo pipefail
 ACTION="${1:?apply|restore}"; ID="${2:?D01..D11}"
 RG="rg-iso-target"
-CSV="$(dirname "$0")/t0.csv"
+CSV="${T0_FILE:-$(dirname "$0")/t0.csv}"   # T0_FILE: separate log for repeated scenarios
 [ -f "$CSV" ] || echo "id,action,utc" > "$CSV"
 o() { az deployment group show -g "$RG" -n target --query "properties.outputs.$1.value" -o tsv; }
 ST=$(o storageName); KV=$(o keyVaultName); LAW=$(o workspaceName); NSG_ID=$(o nsgId)
 UAMI_PID=$(o driftIdentityPrincipalId)
 OWNER=$(az storage account show -n "$ST" -g "$RG" --query "tags.owner" -o tsv)   # storage tags are not changed by D04
 RG_ID=$(az group show -n "$RG" --query id -o tsv)
-KV2="kv-d05-$(echo "$RG_ID" | sha1sum | cut -c1-8)"
+KV2="kv-d05-$(echo "$RG_ID" | sha1sum | cut -c1-8)${DRIFT_SUFFIX:-}"   # DRIFT_SUFFIX: new name when D05 is repeated
 LOC=$(az group show -n "$RG" --query location -o tsv)
 
 case "$ID:$ACTION" in

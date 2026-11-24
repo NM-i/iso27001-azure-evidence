@@ -41,8 +41,9 @@ def test_hash_independent_of_key_order():
 
 
 def test_evaluate_only_literal_true_is_compliant():  # R7
-    assert evaluate({"compliant": True}) is True
-    for v in (False, None, "true", 1):
+    for v in (True, 1, "true"):
+        assert evaluate({"compliant": v}) is True
+    for v in (False, None, 0, "false", 2, 1.0):
         assert evaluate({"compliant": v}) is False
 
 

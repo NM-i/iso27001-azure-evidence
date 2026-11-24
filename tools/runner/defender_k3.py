@@ -15,7 +15,7 @@ from pathlib import Path
 KEYWORDS = {  # scenario: (control, lower-case keyword in the recommendation name)
     "D01": ("A.8.2", None), "D02": ("A.8.3", "public access"), "D03": ("A.8.5", "shared key"),
     "D04": ("A.8.9", None), "D05": ("A.8.13", "deletion protection"), "D06": ("A.8.15", None),
-    "D07": ("A.8.16", None), "D08": ("A.8.20", None), "D09": ("A.8.21", "public network access"),
+    "D07": ("A.8.16", None), "D08": ("A.8.20", None), "D09": ("A.8.21", "firewall should be enabled on key vault"),
     "D10": ("A.8.22", "network security group"), "D11": ("A.8.24", "secure transfer"),
 }
 LIMIT = timedelta(hours=1)

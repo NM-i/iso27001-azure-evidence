@@ -13,6 +13,10 @@ az storage blob download --account-name "$RACC" -c runner -n "$NAME" -f /tmp/res
 tar -xzf /tmp/res.tgz -C "$DIR"
 cp -n build/config_checks.txt build/tf11_deploy.txt "$DIR/build/" 2>/dev/null || true
 rm -rf "$DIR/build/A.8.24" "$DIR"/build/k2_run*      # downloaded evidence copies are not needed for the report
+if [ "$(az storage blob exists --account-name "$RACC" -c runner -n results_rerun/results.tar.gz --auth-mode login --query exists -o tsv)" = "true" ]; then
+  az storage blob download --account-name "$RACC" -c runner -n results_rerun/results.tar.gz -f /tmp/rr.tgz --auth-mode login -o none
+  tar -xzf /tmp/rr.tgz -C "$DIR"; echo "Included: repeated Defender scenarios (build/rerun)"
+fi
 (cd "$DIR" && zip -qr "../$DIR.zip" .)
 echo "Saved: $DIR.zip  (Cloud Shell: Manage files -> Download)"
 cat "$DIR/build/STATUS.txt" 2>/dev/null || true

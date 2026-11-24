@@ -82,7 +82,7 @@ step_defender_on() {
     [ "${n:-0}" -ge 3 ] && [ "$n" = "$prev" ] && break
     prev=$n; sleep 900
   done
-  az graph query --subscriptions "$SUB" --first 1000 -o table -q "$DEF_Q
+  az graph query --subscriptions "$SUB" --first 1000 --query data -o table -q "$DEF_Q
 | project rekomendacija = tostring(properties.displayName), istekliai = tostring(properties.resourceDetails.Id), bukle = tostring(properties.status.code)
 | order by rekomendacija asc" > build/defender_baseline.txt
 }
@@ -91,8 +91,8 @@ step_defender_on() {
 dashboard_watch() {   # TF-04 part 2: when does the dashboard query show A.8.9 as non-compliant?
   local t0=$1 end=$(( $1 + 1800 ))
   while [ "$(now)" -lt "$end" ]; do
-    n=$(la "let last = toscalar(EvidenceCycle_CL | where Status in ('Succeeded','Partial') | top 1 by StartTime desc | project CycleId);
-EvidenceResult_CL | where CycleId == last and ControlId == 'A.8.9' | summarize n = countif(Result == 'neatitinka')" --query "[0].n" -o tsv)
+    n=$(la "let lastCycle = toscalar(EvidenceCycle_CL | where Status in ('Succeeded','Partial') | top 1 by StartTime desc | project CycleId);
+EvidenceResult_CL | where CycleId == lastCycle and ControlId == 'A.8.9' | summarize n = countif(Result == 'neatitinka')" --query "[0].n" -o tsv)
     if [ "${n:-0}" -gt 0 ]; then
       echo "t0=$(iso "$t0"); dashboard_noncompliant=$(date -u +%FT%TZ); minutes=$(( ($(now) - t0) / 60 ))" > build/tf04_dashboard.txt
       return

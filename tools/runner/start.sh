@@ -33,7 +33,10 @@ if [ "$RESUME" = "0" ]; then
   EVID_SCOPE="$(az storage account show -n "$ACC" -g "$PROTO_RG" --query id -o tsv)/blobServices/default/containers/evidence"
   grant() { az role assignment create --assignee-object-id "$1" --assignee-principal-type "$2" --role "$3" --scope "$4" -o none; }
   sleep 30   # identity replication
-  grant "$PID" ServicePrincipal "Owner"                          "$(az group show -n "$TARGET_RG" --query id -o tsv)"  # drift scenarios, incl. D01
+  TGT_ID=$(az group show -n "$TARGET_RG" --query id -o tsv)
+  # Not 'Owner': a direct Owner assignment on the target group would itself violate control A.8.2.
+  grant "$PID" ServicePrincipal "Contributor"                    "$TGT_ID"               # drift scenarios
+  grant "$PID" ServicePrincipal "User Access Administrator"      "$TGT_ID"               # D01 (role assignment)
   grant "$PID" ServicePrincipal "Reader"                         "/subscriptions/$SUB"   # ARG, logs, alerts, deployment outputs
   grant "$PID" ServicePrincipal "Security Admin"                 "/subscriptions/$SUB"   # Defender CSPM on/off
   grant "$PID" ServicePrincipal "Storage Blob Data Contributor"  "$EVID_SCOPE"           # TS-01..TS-03, R10, R2, K2

@@ -364,7 +364,7 @@ resource runnerStaleAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-pre
     criteria: {
       allOf: [
         {
-          query: 'RunnerStatus_CL | summarize last = max(TimeGenerated), finished = countif(Event in ("DONE", "CANCELLED")) | where isnotnull(last) and finished == 0 and last < ago(3h) | extend Stale = 1'
+          query: 'RunnerStatus_CL | summarize lastSeen = max(TimeGenerated), finished = countif(Event in ("DONE", "CANCELLED")) | where isnotnull(lastSeen) and finished == 0 and lastSeen < ago(3h) | extend Stale = 1'
           timeAggregation: 'Total'
           metricMeasureColumn: 'Stale'
           operator: 'GreaterThan'

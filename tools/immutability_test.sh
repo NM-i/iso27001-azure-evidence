@@ -18,17 +18,7 @@ fi
 
 mapfile -t BLOBS < <(az storage blob list --account-name "$ACC" -c evidence --auth-mode login \
   --num-results 2000 --query "[].name" -o tsv | shuf -n 3)
-mkdir -p build/immut
-for b in "${BLOBS[@]}"; do
-  f="build/immut/$(echo "$b" | tr '/' '_')"
-  az storage blob download --account-name "$ACC" -c evidence -n "$b" -f "$f" --auth-mode login -o none
-  echo '{"tampered":true}' > build/immut/tamper.json
-  echo "== TS-01 overwrite $b"
-  az storage blob upload --account-name "$ACC" -c evidence -n "$b" -f build/immut/tamper.json \
-    --overwrite --auth-mode login -o none 2>&1 | tail -1 || true
-  echo "== TS-02 delete $b"
-  az storage blob delete --account-name "$ACC" -c evidence -n "$b" --auth-mode login -o none 2>&1 | tail -1 || true
-done
-echo "Expected for every attempt: an error mentioning immutability (HTTP 409). Any success = NEATITINKA."
+python3 tools/overwrite_test.py --account "$ACC" --names "${BLOBS[@]}" || true
+echo "Expected for every attempt: 'atmesta, HTTP 409, BlobImmutableDueToPolicy'. Any 'PAVYKO' = NEATITINKA."
 echo "== TS-03 hashes after the attempts"
 python3 tools/verify_evidence.py --account "$ACC" --names "${BLOBS[@]}"

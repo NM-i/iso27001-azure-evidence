@@ -66,8 +66,10 @@ def run_query(client: ResourceGraphClient, subscription: str, query: str,
 
 
 def evaluate(row: dict) -> bool:
-    """R7: the query computes 'compliant'; anything other than literal true is non-compliant."""
-    return row.get("compliant") is True
+    """R7: the query computes 'compliant'. Azure Resource Graph returns KQL booleans as 1/0 through the
+    Python SDK, so true, 1 and "true" mean compliant; everything else (0, false, null, missing) does not."""
+    v = row.get("compliant")
+    return v is True or (type(v) is int and v == 1) or (isinstance(v, str) and v.lower() == "true")
 
 
 def run_cycle() -> dict:

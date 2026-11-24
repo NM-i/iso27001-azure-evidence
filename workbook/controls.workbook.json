@@ -10,7 +10,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "let last = toscalar(EvidenceCycle_CL | where Status in ('Succeeded', 'Partial') | top 1 by StartTime desc | project CycleId);\nEvidenceResult_CL\n| where CycleId == last\n| summarize Neatitinka = countif(Result == 'neatitinka'), Istekliu = count(), PaskutinisIrodymas = max(CollectedAt) by Kontrole = ControlId, Pavadinimas = ControlName\n| extend Bukle = iff(Neatitinka > 0, 'neatitinka', 'atitinka')\n| project Kontrole, Pavadinimas, Bukle, Neatitinka, Istekliu, PaskutinisIrodymas\n| order by Kontrole asc",
+        "query": "let lastCycle = toscalar(EvidenceCycle_CL | where Status in ('Succeeded', 'Partial') | top 1 by StartTime desc | project CycleId);\nEvidenceResult_CL\n| where CycleId == lastCycle\n| summarize Neatitinka = countif(Result == 'neatitinka'), Istekliu = count(), PaskutinisIrodymas = max(CollectedAt) by Kontrole = ControlId, Pavadinimas = ControlName\n| extend Bukle = iff(Neatitinka > 0, 'neatitinka', 'atitinka')\n| project Kontrole, Pavadinimas, Bukle, Neatitinka, Istekliu, PaskutinisIrodymas\n| order by Kontrole asc",
         "size": 0,
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
